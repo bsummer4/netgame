@@ -232,8 +232,8 @@ public class Main{
 			byte[] act=new byte[0];
 			byte[] loc=new byte[0];
 			if(nextAct!=null && nextAct.timestamp==time){
-				act=new byte[]{nextAct.act}
-				loc=new byte[]{nextAct.loc}
+				act=new byte[]{nextAct.act};
+				loc=new byte[]{nextAct.loc};
 				actionsMemory.poll();
 			}
 			nu=nu.update(act,loc);
@@ -413,7 +413,7 @@ class Msg {
 	public byte[] m (byte ty) {
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		DataOutputStream d = new DataOutputStream(b);
-		d.writeByte(ty)
+		d.writeByte(ty);
 		return b.toByteArray(); }
 
 	public byte[] m (byte ty, byte a, byte b) {
