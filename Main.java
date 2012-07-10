@@ -4,8 +4,8 @@ import java.net.*;
 import java.util.*;
 
 /* ====================================================================
- * LOGIC/STATE CODE
- * ====================================================================*/
+* LOGIC/STATE CODE
+* ====================================================================*/
 
 class State {
 	public static final byte empty=0, player=1, rocket=2, solid=3;
@@ -16,7 +16,7 @@ class State {
 	public State(byte[] state){ s=state; }
 	public static byte dir (byte b) { return (byte)(b&0x03); }
 	public static byte ty (byte b) { return (byte)((b>>2)&0x03); }
-	public static byte arg (byte b) { return (byte)(b>>4); } 
+	public static byte arg (byte b) { return (byte)(b>>4); }
 	public static byte pack (int ty, int dir, int arg) { return (byte) ((dir&0x03) | (ty<<2) | (arg<<4)); }
 	public static int idx (int x, int y) { return 10*(y%10) + x%10; }
 	public static boolean opposite (int dir1, int dir2) { return (dir1+2==dir2 || dir2+2==dir1); }
@@ -25,7 +25,7 @@ class State {
 		if (dir==left) return idx(x-1+10,y);
 		if (dir==right) return idx(x+1,y);
 		if (dir==down) return idx(x,y+1);
-		if (dir==up) return idx(x,y-1+10); 
+		if (dir==up) return idx(x,y-1+10);
 		return idx(x,y); }
 
 	void apply (byte act, byte loc) {
@@ -62,7 +62,7 @@ class State {
 		for (int i=0; i<100; i++) {
 			if (solid == ty(s[i])) R[i] = s[i];
 			else if (player == ty(s[i])) {
-			if (rocket == ty(R[i])) R[i]  = explosion;
+			if (rocket == ty(R[i])) R[i] = explosion;
 			else R[i]=s[i]; }}
 		s=R; }
 
@@ -88,8 +88,8 @@ class State {
 		return s; }}
 
 /* ====================================================================
- * MAIN CODE
- * ====================================================================*/
+* MAIN CODE
+* ====================================================================*/
 
 public class Main{
 	static GUI gui;
@@ -141,13 +141,13 @@ public class Main{
 		}
 		System.exit(0);
 	}
-    
+
 	public static void failUsage(){
 		System.out.println("Usage: \"java Main host\"");
 		System.out.println("Usage: \"java Main client 192.168.0.3\" where 192.168.0.3 is the IPA of the host.");
 		System.exit(0);
 	}
-    
+
 	public static void start(){
 		stateToDraw=State.getTestState();
 		lastFrameAt=System.currentTimeMillis();
@@ -253,7 +253,7 @@ class Action implements Comparable<Action>{
 	int player;
 	public Action(byte a, byte l, int t, int p) {
 		player=p; act=a; loc=l; timestamp=t; }
-    
+
 	public int compareTo(Action a){ return timestamp-a.timestamp; }
 	public boolean equals(Action a){ return timestamp==a.timestamp; }
 	public static void testActions(){
@@ -269,14 +269,14 @@ class Action implements Comparable<Action>{
 
 
 /* ====================================================================
- * GUI CODE
- * ====================================================================*/
+* GUI CODE
+* ====================================================================*/
 
 class GUI implements KeyListener{
 	Frame frame;
 	GameCanvas canvas;
 	int whoami=0;
-    
+
 	public void init(){
 		frame=new Frame("Project");
 		canvas=new GameCanvas();
@@ -352,7 +352,7 @@ class GUI implements KeyListener{
 	public void commitAction(byte act, byte loc){
 		Main.nextAction=new Action(act,loc,Main.frameCount,whoami);
 	}
-    
+
 	static class GameCanvas extends Canvas{
 		public int whoami=0;
 
@@ -395,17 +395,17 @@ class GUI implements KeyListener{
 # Network Message Format
 All parts of the message format are a byte unless otherwise specified.
 Here are the possible messages:
- Sent by clients:
-  HI =>> Try to connect to a the server.
-  PLAY =>> Ask the server for a player to control.
-  BYE =>> Disconnect from the server.
-  DO timestamp(uint32) id action =>> Try to perform an action.
- Sent by servers:
-  PLACE id pos =>> Gives the client a new player to control.
-  STATE timestamp(uint32) board(byte[100]) =>> Announce a new state to a client.
-  FULLBOARD =>> Refuse a new client because there isn't enough space on the map.
-  FULLPLAYERS =>> Refuse a new client because all 16 ids are taken.
-  END =>> Close the server session.
+Sent by clients:
+ HI =>> Try to connect to a the server.
+ PLAY =>> Ask the server for a player to control.
+ BYE =>> Disconnect from the server.
+ DO timestamp(uint32) id action =>> Try to perform an action.
+Sent by servers:
+ PLACE id pos =>> Gives the client a new player to control.
+ STATE timestamp(uint32) board(byte[100]) =>> Announce a new state to a client.
+ FULLBOARD =>> Refuse a new client because there isn't enough space on the map.
+ FULLPLAYERS =>> Refuse a new client because all 16 ids are taken.
+ END =>> Close the server session.
 ==============================================================================*/
 class Msg {
 	public static final byte HI=0, PLAY=1, BYE=2, DO=3, PLACE=5, STATE=6, FULLBOARD=7, FULLPLAYERS=8, END=9;
@@ -483,7 +483,7 @@ class Network{
 	// Adds messages to `msgqueue' as they come off the network stack.
 	private static class Reciever extends Thread{
 		public void run(){
-			DatagramPacket p = new DatagramPacket(new byte[MAXPACKETSIZE],MAXPACKETSIZE); 
+			DatagramPacket p = new DatagramPacket(new byte[MAXPACKETSIZE],MAXPACKETSIZE);
 			while(Main.running){
 				try{
 					Network.socket.receive(p);
