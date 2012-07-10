@@ -393,7 +393,7 @@ class GUI implements KeyListener{
 }
 
 /*==============================================================================
-# Network Packet Format
+# Network Message Format
 All parts of the message format are a byte unless otherwise specified.
 Here are the possible messages:
 Sent by clients:
@@ -409,41 +409,39 @@ Sent by servers:
  END =>> Close the server session.
 ==============================================================================*/
 class Msg {
-	public static final byte HI=0, PLAY=1, BYE=2, DO=3, PLACE=5, STATE=6, FULLBOARD=7, FULLPLAYERS=8, END=9;
-	byte[] p(int i) { return new byte[i]; }
-	public byte[] m (byte ty) throws IOException{
-		ByteArrayOutputStream b = new ByteArrayOutputStream();
-		DataOutputStream d = new DataOutputStream(b);
-		d.writeByte(ty);
-		return b.toByteArray(); }
+	public static final byte HI=0, PLAY=1, BYE=2, DO=3, PLACE=5, STATE=6;
+	public static final byte FULLBOARD=7, FULLPLAYERS=8, END=9;
+	public byte type=0, id=0, action=0, pos=0;
+	public int timestamp=0;
+	public byte[] board = null;
+	void hi() { type=HI; }
+	void play() { type=PLAY; }
+	void bye() { type=BYE; }
+	void end() { type=END; }
+	void fullboard() { type=FULLBOARD; }
+	void fullplayers() { type=FULLPLAYERS; }
+	void place(byte id, byte pos) { type=PLACE; this.id=id; this.pos=pos; }
+	void state(int ts, byte[] board) {
+		type=STATE; timestamp=ts; this.board=board; }
+	void domsg(byte ts, byte id, byte action) {
+		type=DO; timestamp=ts; this.id=id; this.action=action; }
 
-	public byte[] m (byte ty, byte a, byte c) throws IOException{
-		ByteArrayOutputStream b = new ByteArrayOutputStream();
-		DataOutputStream d = new DataOutputStream(b);
-		d.writeByte(ty);
-		d.writeByte(a);
-		d.writeByte(c);
-		return b.toByteArray(); }
-
-	public byte[] m (byte ty, int i, byte b1, byte b2) throws IOException{
-		ByteArrayOutputStream b = new ByteArrayOutputStream();
-		DataOutputStream d = new DataOutputStream(b);
-		d.writeByte(ty);
-		d.writeInt(i);
-		d.writeByte(b1);
-		d.writeByte(b2);
-		return b.toByteArray(); }
-
-	public byte[] m (byte ty, int i, byte[] bs) throws IOException{
-		ByteArrayOutputStream b = new ByteArrayOutputStream();
-		DataOutputStream d = new DataOutputStream(b);
-		d.writeByte(ty);
-		d.writeInt(i);
-		for (int j=0; j<bs.length; j++) d.writeByte(bs[j]);
-		return b.toByteArray(); }
-
-	public byte[] actionMessage(Action a){return null;}
-}
+	byte[] serialize () {
+		try {
+			int t = type;
+			ByteArrayOutputStream b = new ByteArrayOutputStream();
+			DataOutputStream d = new DataOutputStream(b);
+			d.writeByte(type);
+			if (HI==t || PLAY==t || BYE==t || END==t || FULLBOARD==t || FULLPLAYERS==t);
+			else if (PLACE==t) { d.writeByte(id); d.writeByte(pos); }
+			else if (DO==t) {
+				d.writeInt(timestamp); d.writeByte(id); d.writeByte(action); }
+			else if (STATE==t) {
+				d.writeInt(timestamp);
+				for (int i=0;i<board.length;i++) d.writeByte(board[i]); }
+			else throw new Error();
+			return b.toByteArray(); }
+		catch (IOException e) { throw new Error(); }}}
 
 class Packet {
 		public byte[] data;
