@@ -2,6 +2,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.net.*;
 import java.util.*;
+import java.io.*;
 
 /* ====================================================================
 * LOGIC/STATE CODE
@@ -108,7 +109,7 @@ public class Main{
 	public static ArrayList<PriorityQueue<Action>> hostActions=new ArrayList<>();
 	public static ArrayList<Integer> maxTimestampsSent=new ArrayList<Integer>();
 
-	public LinkedList<Action> actionsMemory=new LinkedList<Action>();
+	public static LinkedList<Action> actionsMemory=new LinkedList<Action>();
 
 	public static boolean isServer=false;
 
@@ -392,17 +393,17 @@ class GUI implements KeyListener{
 }
 
 /*==============================================================================
-# Network Message Format
+# Network Packet Format
 All parts of the message format are a byte unless otherwise specified.
 Here are the possible messages:
 Sent by clients:
  HI =>> Try to connect to a the server.
  PLAY =>> Ask the server for a player to control.
  BYE =>> Disconnect from the server.
- DO timestamp(uint32) id action =>> Try to perform an action.
+ DO timestamp(int) id action =>> Try to perform an action.
 Sent by servers:
  PLACE id pos =>> Gives the client a new player to control.
- STATE timestamp(uint32) board(byte[100]) =>> Announce a new state to a client.
+ STATE timestamp(int) board(byte[100]) =>> Announce a new state to a client.
  FULLBOARD =>> Refuse a new client because there isn't enough space on the map.
  FULLPLAYERS =>> Refuse a new client because all 16 ids are taken.
  END =>> Close the server session.
@@ -410,39 +411,41 @@ Sent by servers:
 class Msg {
 	public static final byte HI=0, PLAY=1, BYE=2, DO=3, PLACE=5, STATE=6, FULLBOARD=7, FULLPLAYERS=8, END=9;
 	byte[] p(int i) { return new byte[i]; }
-	public byte[] m (byte ty) {
+	public byte[] m (byte ty) throws IOException{
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		DataOutputStream d = new DataOutputStream(b);
 		d.writeByte(ty);
 		return b.toByteArray(); }
 
-	public byte[] m (byte ty, byte a, byte b) {
+	public byte[] m (byte ty, byte a, byte c) throws IOException{
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		DataOutputStream d = new DataOutputStream(b);
 		d.writeByte(ty);
 		d.writeByte(a);
-		d.writeByte(b);
+		d.writeByte(c);
 		return b.toByteArray(); }
 
-	public byte[] m (byte ty, uint32 i, byte b1, byte b2) {
+	public byte[] m (byte ty, int i, byte b1, byte b2) throws IOException{
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		DataOutputStream d = new DataOutputStream(b);
 		d.writeByte(ty);
-		d.writeUint32(i);
-		d.writeByte(a);
-		d.writeByte(b);
+		d.writeInt(i);
+		d.writeByte(b1);
+		d.writeByte(b2);
 		return b.toByteArray(); }
 
-	public byte[] m (byte ty, uint32 i, byte[] bs) {
+	public byte[] m (byte ty, int i, byte[] bs) throws IOException{
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		DataOutputStream d = new DataOutputStream(b);
 		d.writeByte(ty);
-		d.writeUint32(i);
-		for (int i=0; i<bs.length; bs++) d.writeByte(bs[i]);
+		d.writeInt(i);
+		for (int j=0; j<bs.length; j++) d.writeByte(bs[j]);
 		return b.toByteArray(); }
+
+	public byte[] actionMessage(Action a){return null;}
 }
 
-private static class Packet {
+class Packet {
 		public byte[] data;
 		public SocketAddress source;
 		public Packet(byte[] b, SocketAddress s){ data=b; source=s; }}
@@ -471,12 +474,12 @@ class Network{
 	}
 
 	public void send(Packet p){
-		synchronized(networkLock){ new Sender(Arrays.copyOf(p.data,p.data.length),a).start(); }
+		synchronized(networkLock){ new Sender(Arrays.copyOf(p.data,p.data.length),p.source).start(); }
 	}
 
-	public Message[] recv(){
+	public Packet[] recv(){
 		synchronized(networkLock){
-			return msgqueue.toArray(new Message[0]);
+			return msgqueue.toArray(new Packet[0]);
 		}
 	}
 
@@ -489,7 +492,7 @@ class Network{
 					Network.socket.receive(p);
 					byte[] payload = Arrays.copyOf(p.getData(),p.getLength());
 					SocketAddress sa = p.getSocketAddress();
-					Network.msgqueue.add(new Message(payload,sa)); }
+					Network.msgqueue.add(new Packet(payload,sa)); }
 				catch(SocketTimeoutException e){ continue; }
 				catch(Exception e){ e.printStackTrace(); break; }
 			}
