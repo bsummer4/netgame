@@ -1,12 +1,12 @@
+/*
+This file contains the entire implementation of netgame.
+*/
+
 import java.awt.*;
 import java.awt.event.*;
 import java.net.*;
 import java.util.*;
 import java.io.*;
-
-/* ====================================================================
-* LOGIC/STATE CODE
-* ====================================================================*/
 
 class State {
 	public static final byte empty=0, player=1, rocket=2, solid=3;
@@ -87,10 +87,6 @@ class State {
 		s.s[89]=pack(rocket,left,10);
 		s.s[38]=pack(rocket,right,10);
 		return s; }}
-
-/* ====================================================================
-* MAIN CODE
-* ====================================================================*/
 
 public class Main{
 	static GUI gui;
@@ -268,11 +264,6 @@ class Action implements Comparable<Action>{
 	}
 }
 
-
-/* ====================================================================
-* GUI CODE
-* ====================================================================*/
-
 class GUI implements KeyListener{
 	Frame frame;
 	GameCanvas canvas;
@@ -392,22 +383,6 @@ class GUI implements KeyListener{
 	}
 }
 
-/*==============================================================================
-# Network Message Format
-All parts of the message format are a byte unless otherwise specified.
-Here are the possible messages:
-Sent by clients:
- HI =>> Try to connect to a the server.
- PLAY =>> Ask the server for a player to control.
- BYE =>> Disconnect from the server.
- DO timestamp(int) id action =>> Try to perform an action.
-Sent by servers:
- PLACE id pos =>> Gives the client a new player to control.
- STATE timestamp(int) board(byte[100]) =>> Announce a new state to a client.
- FULLBOARD =>> Refuse a new client because there isn't enough space on the map.
- FULLPLAYERS =>> Refuse a new client because all 16 ids are taken.
- END =>> Close the server session.
-==============================================================================*/
 class Msg {
 	public static final byte HI=0, PLAY=1, BYE=2, DO=3, PLACE=5, STATE=6;
 	public static final byte FULLBOARD=7, FULLPLAYERS=8, END=9;
@@ -448,10 +423,6 @@ class Packet {
 		public SocketAddress source;
 		public Packet(byte[] b, SocketAddress s){ data=b; source=s; }}
 
-/*
-Sends and recieves UDP messages.
-Introduced artificial latency to message sends.
-*/
 class Network{
 	public static final int PORT=45012;
 	public static final int MAXPACKETSIZE=6000;

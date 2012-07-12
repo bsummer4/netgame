@@ -1,0 +1,65 @@
+# Netgame
+This is a toy game made to experiment with network synronization algorithms.
+
+## Compiling and Running
+Compile:
+ javac Main.java
+
+Test without the network:
+ java Main
+
+Test with the network
+ java Main host >/dev/null &
+ java Main client localhost
+
+Remove all the generated files:
+ rm *.class *.java
+
+## Game States and Their Representation
+Game state information:
+ The board size is 10x10.
+ Each piece can be empty, solid, a rocket, or a player.
+ Players and rockets have a direction: NSEW.
+ Players have an id =>> 0-15
+ Rockets have a lifetime:
+  They start with 9 points and lose one every time they move.
+  When they have 0 points, they explode.
+
+State representation:
+ The game state is stored and transmited as an array of 100 bytes.
+ This is a row-major matrix, one byte per tile.
+ They byte corresponding to each tile contains:
+  2 bits (low) for the type.
+  2 bits (middle) for the direction.
+  4 bits (high) for an arguments.
+   Either a player id or rocket points depending on the type.
+
+## Actions and the State Update Algorithm
+There are 6 possible actions: Turn(north, south, east, west), walk, and shoot.
+ Each player may act once per turn.
+ Actions are stored as a direction and a location (which player).
+ This is encoded in 32 bits.
+  4 bits (low) for the location.
+  4 bits (middle) for the direction.
+  24 bits (high) for the timestamp (turn number)
+
+The state is updated like this:
+ TODO
+
+## Network Message Format
+All parts of the message format are a byte unless otherwise specified.
+Here are the possible messages:
+Sent by clients:
+ HI =>> Try to connect to a the server.
+ PLAY =>> Ask the server for a player to control.
+ BYE =>> Disconnect from the server.
+ DO timestamp(int) id action =>> Try to perform an action.
+Sent by servers:
+ PLACE id pos =>> Gives the client a new player to control.
+ STATE timestamp(int) board(byte[100]) =>> Announce a new state to a client.
+ FULLBOARD =>> Refuse a new client because there isn't enough space on the map.
+ FULLPLAYERS =>> Refuse a new client because all 16 ids are taken.
+ END =>> Close the server session.
+
+## Timing and Syncronization
+TODO
