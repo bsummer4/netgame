@@ -32,7 +32,8 @@ class State {
 		if (dir==up) return idx(x,y-1+10);
 		return idx(x,y); }
 
-	void apply (byte act, byte loc) {
+	void apply (Action a) {
+		byte act=a.act(), loc=a.where();
 		byte b = s[loc];
 		if (player != ty(b)) return;
 		int nu = offset(loc, dir(b));
@@ -70,17 +71,14 @@ class State {
 			else R[i]=s[i]; }}
 		s=R; }
 
-	public State update(byte[] actions, byte[] locations) {
-		State n = new State(s);
-		n.clearExplosions();
-		n.moveRockets();
-		for (int l=0; l<100; l++)
-			for (int i=0; i<actions.length; i++) {
-				if (locations[i] != l) continue;
-				n.apply(actions[i], locations[i]); }
-		return n; }
+	public State update (Action[] actions) {
+		clearExplosions();
+		moveRockets();
+		// The timestamps are all equal, so this sorts by location.
+		Arrays.sort(actions);
+		for (int i=0; i<actions.length; i++) apply(actions[i]); }
 
-	public static State getTestState(){
+	public static State getTestState () {
 		State s=new State(new byte[100]);
 		s.s[0]=pack(player,up,0);
 		s.s[2]=pack(player,down,1);
@@ -90,6 +88,28 @@ class State {
 		s.s[89]=pack(rocket,left,10);
 		s.s[38]=pack(rocket,right,10);
 		return s; }}
+
+class Action implements Comparable<Action> {
+	public Integer i;
+	public byte where () { return (byte) (i&0x3); }
+	public byte act () { return (byte) ((i>>2)&0xF); }
+	public int when () { return (i>>6); }
+	Action (int where, int act, int when) {
+		if (when >= (1<<23) || when < 0 ||
+		    act >= (1<<2) || act < 0 ||
+		    where >= (1<<4) || where < 0)
+			throw new Error();
+		int ii = where | (act<<4) | (when<<6);
+		i = new Integer(where | (act<<4) | (when<<6)); }
+
+	public int compareTo(Action a) { return i.compareTo(a.i); }
+	public static void testActions(){
+		PriorityQueue<Action> a=new PriorityQueue<Action>();
+		for (int i=0;i<10;i++) {
+			int ii = (int) (Math.random()*((1<<23)-1));
+			a.add(new Action(0,0,ii)); }
+		while (a.peek()!=null)
+			System.out.println(a.poll().when()+", "); }}
 
 public class Main{
 	static GUI gui;
@@ -240,28 +260,6 @@ public class Main{
 	public static void handleAction(Action a, int time, SocketAddress src){}
 	public static void draw(){ gui.draw(stateToDraw); }
 }
-
-class Action implements Comparable<Action> {
-	public Integer i;
-	public byte where () { return (byte) (i&0x3); }
-	public byte act () { return (byte) ((i>>2)&0xF); }
-	public int when () { return (i>>6); }
-	Action (int where, int act, int when) {
-		if (when >= (1<<23) || when < 0 ||
-		    act >= (1<<2) || act < 0 ||
-		    where >= (1<<4) || where < 0)
-			throw new Error();
-		int ii = where | (act<<4) | (when<<6);
-		i = new Integer(where | (act<<4) | (when<<6)); }
-
-	public int compareTo(Action a) { return i.compareTo(a.i); }
-	public static void testActions(){
-		PriorityQueue<Action> a=new PriorityQueue<Action>();
-		for (int i=0;i<10;i++) {
-			int ii = (int) (Math.random()*((1<<23)-1));
-			a.add(new Action(0,0,ii)); }
-		while (a.peek()!=null)
-			System.out.println(a.poll().when()+", "); }}
 
 class GUI implements KeyListener{
 	Frame frame;
