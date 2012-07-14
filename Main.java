@@ -18,10 +18,13 @@ class State {
 	public static byte dir (byte b) { return (byte)(b&0x03); }
 	public static byte ty (byte b) { return (byte)((b>>2)&0x03); }
 	public static byte arg (byte b) { return (byte)(b>>4); }
-	public static byte pack (int ty, int dir, int arg) { return (byte) ((dir&0x03) | (ty<<2) | (arg<<4)); }
+	public static byte pack (int ty, int dir, int arg) {
+		return (byte) ((dir&0x03) | (ty<<2) | (arg<<4)); }
 	public static int idx (int x, int y) { return 10*(y%10) + x%10; }
-	public static boolean opposite (int dir1, int dir2) { return (dir1+2==dir2 || dir2+2==dir1); }
-	public static int offset(int i, int dir) { return offset(i%10, i/10, dir); }
+	public static boolean opposite (int dir1, int dir2) {
+		return (dir1+2==dir2 || dir2+2==dir1); }
+	public static int offset(int i, int dir) {
+		return offset(i%10, i/10, dir); }
 	public static int offset(int x, int y, int dir) {
 		if (dir==left) return idx(x-1+10,y);
 		if (dir==right) return idx(x+1,y);
@@ -99,16 +102,12 @@ public class Main{
 	static int frameCount=0;
 	public static final long MILLISPERFRAME=500;
 	public static Action nextAction;
-
 	public static int playercount=0;
 	public static HashMap<SocketAddress,Integer> playernumbers=new HashMap<>();
 	public static ArrayList<PriorityQueue<Action>> hostActions=new ArrayList<>();
 	public static ArrayList<Integer> maxTimestampsSent=new ArrayList<Integer>();
-
 	public static LinkedList<Action> actionsMemory=new LinkedList<Action>();
-
 	public static boolean isServer=false;
-
 	public static void main(String[] args){
 		if (args.length!=2 && args.length !=1) failUsage();
 		net=new Network();
@@ -123,7 +122,7 @@ public class Main{
 		//Action.testActions();
 
 		start();
-		
+
 		while(running){ //this is the game loop
 			//net.recv();
 			if(!isServer) updateClient();
@@ -387,7 +386,7 @@ class Msg {
 	public static final byte HI=0, PLAY=1, BYE=2, DO=3, PLACE=5, STATE=6;
 	public static final byte FULLBOARD=7, FULLPLAYERS=8, END=9;
 	public byte type=0, id=0, action=0, pos=0;
-	public int timestamp=0;
+	public int time=0;
 	public byte[] board = null;
 	void hi() { type=HI; }
 	void play() { type=PLAY; }
@@ -397,9 +396,9 @@ class Msg {
 	void fullplayers() { type=FULLPLAYERS; }
 	void place(byte id, byte pos) { type=PLACE; this.id=id; this.pos=pos; }
 	void state(int ts, byte[] board) {
-		type=STATE; timestamp=ts; this.board=board; }
+		type=STATE; time=ts; this.board=board; }
 	void domsg(byte ts, byte id, byte action) {
-		type=DO; timestamp=ts; this.id=id; this.action=action; }
+		type=DO; time=ts; this.id=id; this.action=action; }
 
 	byte[] serialize () {
 		try {
@@ -410,9 +409,9 @@ class Msg {
 			if (HI==t || PLAY==t || BYE==t || END==t || FULLBOARD==t || FULLPLAYERS==t);
 			else if (PLACE==t) { d.writeByte(id); d.writeByte(pos); }
 			else if (DO==t) {
-				d.writeInt(timestamp); d.writeByte(id); d.writeByte(action); }
+				d.writeInt(time); d.writeByte(id); d.writeByte(action); }
 			else if (STATE==t) {
-				d.writeInt(timestamp);
+				d.writeInt(time);
 				for (int i=0;i<board.length;i++) d.writeByte(board[i]); }
 			else throw new Error();
 			return b.toByteArray(); }
