@@ -98,7 +98,7 @@ public class Main{
 	static long lastFrameAt=0;
 	static int frameCount=0;
 	public static final long MILLISPERFRAME=500;
-	public static Action nextAction=null;
+	public static Action nextAction;
 
 	public static int playercount=0;
 	public static HashMap<SocketAddress,Integer> playernumbers=new HashMap<>();
@@ -119,9 +119,8 @@ public class Main{
 		State s = new State(new byte[100]);
 		gui=new GUI();
 		gui.init();
-		//debug:
+
 		//Action.testActions();
-		//end debug
 
 		start();
 		
@@ -172,15 +171,15 @@ public class Main{
 		while(minFrame>=frameCount){
 			LinkedList<Action> actions=new LinkedList<>();
 			for(PriorityQueue<Action> pq: hostActions){
-				if(pq.peek().timestamp==frameCount) actions.add(pq.poll());
+				if(pq.peek().when()==frameCount) actions.add(pq.poll());
 			}
 			Action[] actsArray=actions.toArray(new Action[0]);
 			Arrays.sort(actsArray);
 			byte[] acts=new byte[actsArray.length];
 			byte[] locs=new byte[actsArray.length];
 			for(int i=0;i<acts.length;i++){
-				acts[i]=actsArray[i].act;
-				locs[i]=actsArray[i].loc;
+				acts[i]=actsArray[i].act();
+				locs[i]=actsArray[i].where();
 			}
 			stateToDraw=stateToDraw.update(acts,locs);
 			frameCount++;
@@ -202,7 +201,7 @@ public class Main{
 						if(nextAction==null){
 							stateToDraw=stateToDraw.update(new byte[0],new byte[0]);
 						}else{
-							stateToDraw=stateToDraw.update(new byte[]{nextAction.act},new byte[]{nextAction.loc});
+							stateToDraw=stateToDraw.update(new byte[]{nextAction.act()},new byte[]{nextAction.where()});
 							actionsMemory.add(nextAction);
 						}
 						lastFrameAt+=MILLISPERFRAME;
@@ -222,15 +221,15 @@ public class Main{
 	public static void handleStateBroadcast(State nu, int time){
 		while(time<frameCount){
 			Action nextAct=actionsMemory.peek();
-			while(nextAct!=null && nextAct.timestamp<time){
+			while(nextAct!=null && nextAct.when()<time){
 				actionsMemory.poll();
 				nextAct=actionsMemory.peek();
 			}
 			byte[] act=new byte[0];
 			byte[] loc=new byte[0];
-			if(nextAct!=null && nextAct.timestamp==time){
-				act=new byte[]{nextAct.act};
-				loc=new byte[]{nextAct.loc};
+			if(nextAct!=null && nextAct.when()==time){
+				act=new byte[]{nextAct.act()};
+				loc=new byte[]{nextAct.where()};
 				actionsMemory.poll();
 			}
 			nu=nu.update(act,loc);
@@ -243,26 +242,27 @@ public class Main{
 	public static void draw(){ gui.draw(stateToDraw); }
 }
 
-class Action implements Comparable<Action>{
-	byte loc;
-	byte act;
-	int timestamp;
-	int player;
-	public Action(byte a, byte l, int t, int p) {
-		player=p; act=a; loc=l; timestamp=t; }
+class Action implements Comparable<Action> {
+	public Integer i;
+	public byte where () { return (byte) (i&0x3); }
+	public byte act () { return (byte) ((i>>2)&0xF); }
+	public int when () { return (i>>6); }
+	Action (int where, int act, int when) {
+		if (when >= (1<<23) || when < 0 ||
+		    act >= (1<<2) || act < 0 ||
+		    where >= (1<<4) || where < 0)
+			throw new Error();
+		int ii = where | (act<<4) | (when<<6);
+		i = new Integer(where | (act<<4) | (when<<6)); }
 
-	public int compareTo(Action a){ return timestamp-a.timestamp; }
-	public boolean equals(Action a){ return timestamp==a.timestamp; }
+	public int compareTo(Action a) { return i.compareTo(a.i); }
 	public static void testActions(){
 		PriorityQueue<Action> a=new PriorityQueue<Action>();
-		for(int i=0;i<10;i++){
-			a.add(new Action((byte)0,(byte)0,(int)(Math.random()*1000),0));
-		}
-		while(a.peek()!=null){
-			System.out.println(a.poll().timestamp+", ");
-		}
-	}
-}
+		for (int i=0;i<10;i++) {
+			int ii = (int) (Math.random()*((1<<23)-1));
+			a.add(new Action(0,0,ii)); }
+		while (a.peek()!=null)
+			System.out.println(a.poll().when()+", "); }}
 
 class GUI implements KeyListener{
 	Frame frame;
@@ -342,7 +342,7 @@ class GUI implements KeyListener{
 	}
 
 	public void commitAction(byte act, byte loc){
-		Main.nextAction=new Action(act,loc,Main.frameCount,whoami);
+		Main.nextAction=new Action(act,loc,Main.frameCount);
 	}
 
 	static class GameCanvas extends Canvas{
