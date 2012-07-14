@@ -71,14 +71,14 @@ class State {
 			else R[i]=s[i]; }}
 		s=R; }
 
-	public State update (Action[] actions) {
+	public void update (Action[] actions) {
 		clearExplosions();
 		moveRockets();
 		// The timestamps are all equal, so this sorts by location.
 		Arrays.sort(actions);
 		for (int i=0; i<actions.length; i++) apply(actions[i]); }
 
-	public static State getTestState () {
+	public static State testState () {
 		State s=new State(new byte[100]);
 		s.s[0]=pack(player,up,0);
 		s.s[2]=pack(player,down,1);
@@ -91,22 +91,24 @@ class State {
 
 class Action implements Comparable<Action> {
 	public Integer i;
-	public byte where () { return (byte) (i&0x3); }
-	public byte act () { return (byte) ((i>>2)&0xF); }
-	public int when () { return (i>>6); }
-	Action (int where, int act, int when) {
-		if (when >= (1<<23) || when < 0 ||
-		    act >= (1<<2) || act < 0 ||
-		    where >= (1<<4) || where < 0)
-			throw new Error();
-		int ii = where | (act<<4) | (when<<6);
-		i = new Integer(where | (act<<4) | (when<<6)); }
+	public int rmask (int i, int bits) { return i&((1<<bits)-1); }
+	public byte act () { return (byte) rmask(i,3); }
+	public byte where () { return (byte) rmask(i>>3,7); }
+	public int when () { return rmask(i>>9,21); }
+	Action (int act, int where, int when) {
+		i = new Integer(act | (where<<3) | (when<<10)); }
 
 	public int compareTo(Action a) { return i.compareTo(a.i); }
 	public static void testActions(){
+		Action x = new Action(1,2,3);
+		Action y = new Action(3,127,4194303);
+		System.out.println(x.act() + " " + x.where() + " " + x.when());
+		System.out.println(x.i);
+		System.out.println(y.act() + " " + y.where() + " " + y.when());
+		System.out.println(y.i);
 		PriorityQueue<Action> a=new PriorityQueue<Action>();
 		for (int i=0;i<10;i++) {
-			int ii = (int) (Math.random()*((1<<23)-1));
+			int ii = (int) (Math.random()*((1<<22)-1));
 			a.add(new Action(0,0,ii)); }
 		while (a.peek()!=null)
 			System.out.println(a.poll().when()+", "); }}
@@ -139,7 +141,7 @@ public class Main{
 		gui=new GUI();
 		gui.init();
 
-		//Action.testActions();
+		Action.testActions();
 
 		start();
 
@@ -164,7 +166,7 @@ public class Main{
 	}
 
 	public static void start(){
-		stateToDraw=State.getTestState();
+		stateToDraw=State.testState();
 		lastFrameAt=System.currentTimeMillis();
 		gameStartAt=lastFrameAt;
 	}
@@ -193,14 +195,7 @@ public class Main{
 				if(pq.peek().when()==frameCount) actions.add(pq.poll());
 			}
 			Action[] actsArray=actions.toArray(new Action[0]);
-			Arrays.sort(actsArray);
-			byte[] acts=new byte[actsArray.length];
-			byte[] locs=new byte[actsArray.length];
-			for(int i=0;i<acts.length;i++){
-				acts[i]=actsArray[i].act();
-				locs[i]=actsArray[i].where();
-			}
-			stateToDraw=stateToDraw.update(acts,locs);
+			stateToDraw.update(actsArray);
 			frameCount++;
 		}
 		//Network.transmitState();
@@ -218,9 +213,9 @@ public class Main{
 				while(time-lastFrameAt>=MILLISPERFRAME){
 					synchronized(stateUpdateLock){
 						if(nextAction==null){
-							stateToDraw=stateToDraw.update(new byte[0],new byte[0]);
+							stateToDraw.update(new Action[0]);
 						}else{
-							stateToDraw=stateToDraw.update(new byte[]{nextAction.act()},new byte[]{nextAction.where()});
+							stateToDraw.update(new Action[]{nextAction});
 							actionsMemory.add(nextAction);
 						}
 						lastFrameAt+=MILLISPERFRAME;
@@ -244,14 +239,12 @@ public class Main{
 				actionsMemory.poll();
 				nextAct=actionsMemory.peek();
 			}
-			byte[] act=new byte[0];
-			byte[] loc=new byte[0];
+			Action[] as = new Action[0];
 			if(nextAct!=null && nextAct.when()==time){
-				act=new byte[]{nextAct.act()};
-				loc=new byte[]{nextAct.where()};
+				as = new Action[]{nextAct};
 				actionsMemory.poll();
 			}
-			nu=nu.update(act,loc);
+			nu.update(as);
 			time++;
 		}
 		stateToDraw=nu;
@@ -398,7 +391,8 @@ class Msg {
 	void domsg(byte ts, byte id, byte action) {
 		type=DO; time=ts; this.id=id; this.action=action; }
 
-	byte[] serialize () {
+	void slurp (byte[] d) {} // TODO
+	byte[] dump () {
 		try {
 			int t = type;
 			ByteArrayOutputStream b = new ByteArrayOutputStream();
@@ -414,11 +408,6 @@ class Msg {
 			else throw new Error();
 			return b.toByteArray(); }
 		catch (IOException e) { throw new Error(); }}}
-
-class Packet {
-		public byte[] data;
-		public SocketAddress source;
-		public Packet(byte[] b, SocketAddress s){ data=b; source=s; }}
 
 class Network{
 	public static final int PORT=45012;
@@ -448,6 +437,11 @@ class Network{
 			return msgqueue.toArray(new Packet[0]);
 		}
 	}
+
+	public static class Packet {
+		public byte[] data;
+		public SocketAddress source;
+		public Packet(byte[] b, SocketAddress s){ data=b; source=s; }}
 
 	// Adds messages to `msgqueue' as they come off the network stack.
 	private static class Reciever extends Thread{

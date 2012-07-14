@@ -39,9 +39,9 @@ There are 6 possible actions: Turn(north, south, east, west), walk, and shoot.
  Each player may act once per turn.
  Actions are stored as a direction and a location (which player).
  This is encoded in 32 bits.
-  4 bits (low) for the location.
-  2 bits (middle) for the direction.
-  23 bits (high) for the timestamp (turn number)
+  3 bits (low) for the action.
+  7 bits (low) for the location.
+  21 bits (high) for the timestamp (turn number)
 
 The state is updated like this:
  TODO
