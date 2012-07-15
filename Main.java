@@ -1,5 +1,5 @@
 /*
-This file contains the entire implementation of netgame.
+	This file contains the entire implementation of netgame.
 */
 
 import java.awt.*;
@@ -19,10 +19,12 @@ class State {
 	public static byte ty (short b) { return (byte)((b>>2)&0x3); }
 	public static byte arg (short b) { return (byte)((b>>4)&0x0F); }
 	public static byte timeout (short b) { return (byte)(b>>8); }
+	public static short pack (int ty) { return pack(ty,0); }
+	public static short pack (int ty, int dir) { return pack(ty,dir,0); }
 	public static short pack (int ty, int dir, int arg) {
-		return pack(ty,dir,arg,30); }
+		return pack(ty,dir,arg,50); }
 	public static short pack (int ty, int dir, int arg, int timeout) {
-		return (short) ((dir&0x03) | (ty<<2) | (arg<<4)); }
+		return (short) ((dir&0x03) | (ty<<2) | (arg<<4) | (timeout<<8)); }
 	public static int idx (int x, int y) { return 10*(y%10) + x%10; }
 	public static boolean opposite (int dir1, int dir2) {
 		return (dir1+2==dir2 || dir2+2==dir1); }
@@ -43,7 +45,7 @@ class State {
 		int t = ty(s[nu]);
 		if (walk == act) {
 		if (solid == t || player == t) return;
-		s[loc] = pack(empty,0,0);
+		s[loc] = pack(empty);
 		if (rocket == t) s[nu] = explosion;
 		else s[nu] = b; }
 		else if (shoot == act) {
@@ -52,29 +54,45 @@ class State {
 		else // act is a direction, so we change the player facing.
 		s[loc] = pack(player,act,arg(b)); }
 
+	void lessenTimeout () {
+		for (int i=0; i<100; i++) {
+			if (0==timeout(s[i])) continue;
+			s[i] = pack(ty(s[i]), dir(s[i]), arg(s[i]), timeout(s[i])-1); }}
+
 	void clearExplosions () {
 		for (int i=0; i<100; i++)
-		if (rocket == ty(s[i]) && 0==arg(s[i])) s[i] = pack(empty,0,0); }
+			if (rocket == ty(s[i]) && 0==(arg(s[i])+timeout(s[i])))
+				s[i] = pack(empty); }
 
 	void moveRockets() {
-		// Figuire out the new locations for all rockets.
+		// Figuire out the new locations for all rockets with 0 timeouts.
 		short[] R = new short[100];
 		for (int i=0; i<100; i++) {
-		if (rocket != ty(s[i])) continue;
-		int l = offset(i,dir(s[i]));
-		if (0 == R[l]) R[l] = pack(rocket,dir(s[i]),arg(s[i])-1);
-		else R[l] = explosion;
-		if (rocket == ty(s[l]) && opposite(dir(s[i]), dir(s[l])))
-		R[l] = R[i] = explosion; }
-		// Copy in the non-rocket objects from the old state array.
+			if (rocket==ty(s[i])) System.out.println("timeout:"+timeout(s[i]));
+			if (rocket!=ty(s[i]) || 0!=timeout(s[i])) continue;
+			int nu = offset(i,dir(s[i]));
+			if (0 == R[nu]) R[nu] = pack(rocket,dir(s[i]),arg(s[i])-1);
+			else R[nu] = explosion;
+			if (rocket == ty(s[nu])) {
+				if (opposite(dir(s[i]),dir(s[nu])))
+					R[nu] = R[i] = explosion;
+				if (0!=timeout(s[nu]))
+					R[nu] = explosion; }
+			if (solid == ty(s[nu]))
+				R[i] = explosion; }
+
+		// Copy everything besides active rockets from the old state array.
 		for (int i=0; i<100; i++) {
 			if (solid == ty(s[i])) R[i] = s[i];
-			else if (player == ty(s[i])) {
-			if (rocket == ty(R[i])) R[i] = explosion;
-			else R[i]=s[i]; }}
+			else if (player==ty(s[i]) || (0!=timeout(s[i]) && rocket==ty(s[i]))) {
+				if (rocket == ty(R[i])) R[i] = explosion;
+				else R[i]=s[i]; }}
+
+		// Replace the old state array with the new one.
 		s=R; }
 
 	public void update (Action[] actions) {
+		lessenTimeout();
 		clearExplosions();
 		moveRockets();
 		// The timestamps are all equal, so this sorts by location.
@@ -85,11 +103,12 @@ class State {
 		State s=new State(new short[100]);
 		s.s[0]=pack(player,up,0);
 		s.s[2]=pack(player,down,1);
-		s.s[15]=pack(rocket,up,10);
-		s.s[45]=pack(rocket,down,10);
-		s.s[77]=pack(solid,0,0);
+		s.s[77]=pack(solid);
+		s.s[15]=pack(rocket,up,10); // Runs into an explosion.
+		s.s[45]=pack(rocket,down,10); // These two collide.
 		s.s[89]=pack(rocket,left,10);
-		s.s[38]=pack(rocket,right,10);
+		s.s[79]=pack(rocket,right,10,4); // Hits the solid.
+		s.s[38]=pack(rocket,right,15,97); // looper.
 		return s; }}
 
 class Action implements Comparable<Action> {
