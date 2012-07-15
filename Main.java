@@ -42,17 +42,20 @@ class State {
 		short b = s[loc];
 		if (player != ty(b)) return;
 		int nu = offset(loc, dir(b));
-		int t = ty(s[nu]);
+		int t=ty(s[nu]), to=timeout(b);
 		if (walk == act) {
-		if (solid == t || player == t) return;
-		s[loc] = pack(empty);
-		if (rocket == t) s[nu] = explosion;
-		else s[nu] = b; }
+			if (to != 0) return;
+			if (solid == t || player == t) return;
+			s[loc] = pack(empty);
+			if (rocket == t) s[nu] = explosion;
+			else s[nu] = pack(ty(b),dir(b),arg(b)); }
 		else if (shoot == act) {
-		if (rocket == t || player == t) s[nu] = explosion;
-		if (empty == t) s[nu] = pack(rocket,dir(b),8); }
+			if (to != 0) return;
+			if (rocket == t || player == t) s[nu] = explosion;
+			if (empty == t) s[nu] = pack(rocket,dir(b),8);
+			s[loc] = pack(ty(b),dir(b),arg(b)); }
 		else // act is a direction, so we change the player facing.
-		s[loc] = pack(player,act,arg(b)); }
+			s[loc] = pack(player,act,arg(b),to); }
 
 	void lessenTimeout () {
 		for (int i=0; i<100; i++) {
