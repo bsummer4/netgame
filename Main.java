@@ -11,15 +11,18 @@ import java.io.*;
 class State {
 	public static final byte empty=0, player=1, rocket=2, solid=3;
 	public static final byte left=0, up=1, right=2, down=3, walk=4, shoot=5;
-	public static final byte explosion = pack(rocket,0,0);
-	public byte s[];
+	public static final short explosion = pack(rocket,0,0);
+	public short s[];
 
-	public State(byte[] state){ s=state; }
-	public static byte dir (byte b) { return (byte)(b&0x03); }
-	public static byte ty (byte b) { return (byte)((b>>2)&0x03); }
-	public static byte arg (byte b) { return (byte)(b>>4); }
-	public static byte pack (int ty, int dir, int arg) {
-		return (byte) ((dir&0x03) | (ty<<2) | (arg<<4)); }
+	public State(short[] state){ s=state; }
+	public static byte dir (short b) { return (byte)(b&0x3); }
+	public static byte ty (short b) { return (byte)((b>>2)&0x3); }
+	public static byte arg (short b) { return (byte)((b>>4)&0x0F); }
+	public static byte timeout (short b) { return (byte)(b>>8); }
+	public static short pack (int ty, int dir, int arg) {
+		return pack(ty,dir,arg,30); }
+	public static short pack (int ty, int dir, int arg, int timeout) {
+		return (short) ((dir&0x03) | (ty<<2) | (arg<<4)); }
 	public static int idx (int x, int y) { return 10*(y%10) + x%10; }
 	public static boolean opposite (int dir1, int dir2) {
 		return (dir1+2==dir2 || dir2+2==dir1); }
@@ -34,7 +37,7 @@ class State {
 
 	void apply (Action a) {
 		byte act=a.act(), loc=a.where();
-		byte b = s[loc];
+		short b = s[loc];
 		if (player != ty(b)) return;
 		int nu = offset(loc, dir(b));
 		int t = ty(s[nu]);
@@ -55,7 +58,7 @@ class State {
 
 	void moveRockets() {
 		// Figuire out the new locations for all rockets.
-		byte[] R = new byte[100];
+		short[] R = new short[100];
 		for (int i=0; i<100; i++) {
 		if (rocket != ty(s[i])) continue;
 		int l = offset(i,dir(s[i]));
@@ -79,7 +82,7 @@ class State {
 		for (int i=0; i<actions.length; i++) apply(actions[i]); }
 
 	public static State testState () {
-		State s=new State(new byte[100]);
+		State s=new State(new short[100]);
 		s.s[0]=pack(player,up,0);
 		s.s[2]=pack(player,down,1);
 		s.s[15]=pack(rocket,up,10);
@@ -122,7 +125,7 @@ public class Main{
 	static long gameStartAt=0;
 	static long lastFrameAt=0;
 	static int frameCount=0;
-	public static final long MILLISPERFRAME=500;
+	public static final long MILLISPERFRAME=15;
 	public static Action nextAction;
 	public static int playercount=0;
 	public static HashMap<SocketAddress,Integer> playernumbers=new HashMap<>();
@@ -137,7 +140,7 @@ public class Main{
 		if (args.length==1) net.init();
 		else if (args.length==2 && args[0].equals("client")) net.init();
 		else failUsage();
-		State s = new State(new byte[100]);
+		State s = new State(new short[100]);
 		gui=new GUI();
 		gui.init();
 
@@ -344,7 +347,7 @@ class GUI implements KeyListener{
 			for(int i=0;i<100;i++){
 				int y=(i/10)*40;
 				int x=(i%10)*40;
-				byte cell=state.s[i];
+				short cell=state.s[i];
 				byte type=State.ty(cell);
 				Color c=null;
 				if(type==State.empty) c=new Color(255,255,255);
