@@ -7,6 +7,7 @@ import java.awt.event.*;
 import java.net.*;
 import java.util.*;
 import java.io.*;
+import java.nio.ByteBuffer;
 
 class State {
 	public static final byte empty=0, player=1, rocket=2, solid=3;
@@ -147,6 +148,7 @@ public class Main{
 	static long gameStartAt=0;
 	static long lastFrameAt=0;
 	static int frameCount=0;
+	static bool debug=false;
 	public static final long MILLISPERFRAME=15;
 	public static Action nextAction;
 	public static int playercount=0;
@@ -158,20 +160,19 @@ public class Main{
 	public static void main(String[] args){
 		if (args.length!=2 && args.length !=1) failUsage();
 		net=new Network();
-		if (args.length==1) isServer=true;
-		if (args.length==1) net.init();
+		if (args.length==1) { isServer=true; net.init(); }
 		else if (args.length==2 && args[0].equals("client")) net.init();
 		else failUsage();
 		State s = new State(new short[100]);
 		gui=new GUI();
 		gui.init();
 
-		Action.testActions();
+		if (debug) Action.testActions();
 
 		start();
 
 		while(running){ //this is the game loop
-			//net.recv();
+			Network.Packet[] ps = net.recv();
 			if(!isServer) updateClient();
 			else updateServer();
 			draw();
@@ -413,10 +414,24 @@ class Msg {
 	void place(byte id, byte pos) { type=PLACE; this.id=id; this.pos=pos; }
 	void state(int ts, byte[] board) {
 		type=STATE; time=ts; this.board=board; }
-	void domsg(byte ts, byte id, byte action) {
+	void domsg(int ts, byte id, byte action) {
 		type=DO; time=ts; this.id=id; this.action=action; }
 
-	void slurp (byte[] d) {} // TODO
+	void slurp (byte[] d) {
+		ByteBuffer bb = ByteBuffer.wrap(d,0,d.length);
+		// TODO Better Bounds checking.
+		switch(d[0]) {
+		case HI: hi(); return;
+		case PLAY: play(); return;
+		case BYE: bye(); return;
+		case DO: domsg(bb.getInt(),bb.get(),bb.get()); return;
+		case PLACE: place(bb.get(),bb.get()); return;
+		case STATE: state(bb.getInt(),Arrays.copyOfRange(d,4,d.length-4)); return;
+		case FULLBOARD: fullboard(); return;
+		case FULLPLAYERS: fullplayers(); return;
+		case END: end(); return;
+		default: throw new Error(); }}
+
 	byte[] dump () {
 		try {
 			int t = type;
