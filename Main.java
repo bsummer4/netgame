@@ -148,7 +148,7 @@ public class Main{
 	static long gameStartAt=0;
 	static long lastFrameAt=0;
 	static int frameCount=0;
-	static bool debug=false;
+	static boolean debug=false;
 	public static final long MILLISPERFRAME=15;
 	public static Action nextAction;
 	public static int playercount=0;
