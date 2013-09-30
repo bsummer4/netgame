@@ -9,13 +9,23 @@
 #define SERVER_SOCKET   2000
 #define MAX_PACKET_SIZE 512
 
-bool server;//whether this instance should act as server
+bool is_server;//whether this instance should act as server
 
-Client **clients = malloc(sizeof(Client) * 16);
-Server *server = malloc(sizeof(Server));
+//used instead of exit() to ensure cleanup
+static void
+quit(int rc, Client **clients, Server *server)
+{
+  if(clients)
+    free(clients);
+  if(server)
+    free(server);
+
+  SDLNet_Quit();
+  exit(rc);
+}
 
 void 
-net_init( char **argv )
+net_init( char **argv, Server *server )
 {
 
   int c = SDLNet_Init();
@@ -40,25 +50,24 @@ net_init( char **argv )
     UDPsocket sd = SDLNet_UDP_Open(0);
     check( !sd, "SDLNet_UDP_Open: %s\n", SDLNet_GetError() );
 
-    server->socket = sd
+    server->socket = sd;
   }
 
 error:
-  quit(1);
+  quit(1, NULL, server);
 }
 
-//used instead of exit() to ensure cleanup
-static void
-quit(int rc)
+void
+net_send( IPaddress addr, UDPsocket socket, UDPpacket *packet, char *data) //data will change types in the future
 {
-  if(clients)
-    free(clients);
-  if(server)
-    free(server);
+  packet->data = data;
 
-  SDLNet_Quit();
-  exit(rc);
+  packet->address.host = addr.host;
+  packet->address.port = addr.port;
+  packet->len = strlen((char*)packet->data) + 1;
+  SDLNet_UDP_Send(socket, -1, packet);
 }
+
 
 //should be integrated into actual main
 //expected argv; ./netgame server {socket}
@@ -66,23 +75,25 @@ quit(int rc)
 int 
 main (int argc, char **argv)
 {
+  Client **clients = malloc(sizeof(Client) * 16);
+  Server *server = malloc(sizeof(Server));
 
-  if strcmp(argv[1], "server") {
-    server = 1;
+  if (strcmp(argv[1], "server")) {
+    is_server = 1;
     check (argc < 3, "Not enough arguments for server to be established.");
   } else {
-    server = 0;
+    is_server = 0;
     check( argc < 4, "Not enough arguments for client to connect.");
   }
 
-  net_init( argv );
+  net_init( argv, server );
  
-  UDPpacket pack = SDLNet_AllocPacket(MAX_PACKET_SIZE);
+  UDPpacket *pack = SDLNet_AllocPacket(MAX_PACKET_SIZE);
   check( !pack, "SDLNet_AllocPacket: %s\n", SDLNet_GetError() );
 
   //game loop
   while (1){
-    if (server){
+    if (is_server){
       if (SDLNet_UDP_Recv(server->socket, pack)){
         //packet is in pack
 
@@ -90,12 +101,15 @@ main (int argc, char **argv)
       //send received packet to all clients
     } else {
 
-      //put data in pack->data
+      //define data
+      net_send( server->addr, server->socket, pack, "data");
 
+      /*
       pack->address.host = server->addr.host;
       pack->address.port = server->addr.port;
-      p->len = strlen((char*)p->data) + 1;
+      pack->len = strlen((char*)pack->data) + 1;
       SDLNet_UDP_Send(server->socket, -1, pack);
+      */
 
     }
   }
@@ -105,7 +119,7 @@ main (int argc, char **argv)
   return 0;
 
 error:
-  quit(1);
+  quit(1, clients, server);
   return 1;
 }
 

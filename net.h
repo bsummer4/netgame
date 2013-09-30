@@ -4,21 +4,21 @@
 #include "SDL_net.h"
 
 //used by the server 
-struct Client {
+typedef struct Client {
 
   unsigned char clientid;
   unsigned char playerid;
 
   UDPsocket sourcesocket;
-}
+} Client;
 
-struct Server {
+typedef struct Server {
 
   UDPsocket socket;
   IPaddress addr;
-}
+} Server;
 
-struct Packet {
+typedef struct Packet {
 
   //
-}
+} Packet;
